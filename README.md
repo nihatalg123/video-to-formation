@@ -17,8 +17,8 @@ The result is ordinary Skybrush formations and light effects, so transitions and
 
 ## Download
 
-Get the latest version from the **[Releases page](../../releases/latest)** and pick the
-file for your computer:
+Get the latest version from the **[Releases page](https://github.com/nihatalg123/video-to-formation/releases/latest)**
+and pick the file for your computer:
 
 | Your computer | File | FFmpeg |
 |---|---|---|
@@ -107,4 +107,4 @@ FFmpeg project.
 ## Author
 
 Developed by **@nihatalg**. Bug reports and ideas are welcome in
-[Issues](../../issues).
+[Issues](https://github.com/nihatalg123/video-to-formation/issues).
