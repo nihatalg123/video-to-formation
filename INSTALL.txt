@@ -1,0 +1,157 @@
+VIDEO TO FORMATION - INSTALLATION GUIDE
+Version 0.3.0  ·  Developer: @nihatalg
+=======================================================================
+
+Video to Formation is a Blender extension for Skybrush Studio. It plays a video on a
+drone screen: it builds a Grid or Rings screen formation, adds it to the storyboard
+and bakes the video into a standard Skybrush light effect (15 or 30 light frames a
+second). Tested with screens of up to 5,000 drones.
+
+
+1. WHAT YOU NEED
+-----------------------------------------------------------------------
+
+* Blender 5.0 or newer
+* Skybrush Studio for Blender, installed and enabled (tested with 4.1.1)
+* Windows 10 or 11 (64-bit), or a Mac with Apple Silicon and macOS 12 Monterey or
+  newer, or Linux
+
+FFmpeg (the program that reads the video) is included in the Windows and Mac
+packages. You do not need to install it.
+
+
+2. WHICH FILE TO DOWNLOAD
+-----------------------------------------------------------------------
+
+  Windows (64-bit, also Windows 11 on ARM)
+      video_formation-0.3.0-windows-x64.zip        (FFmpeg 9.0.2 included)
+
+  Mac with Apple Silicon (M1, M2, M3, M4 ...)
+      video_formation-0.3.0-macos-arm64.zip        (FFmpeg 9.0.2 included)
+
+  Linux, or you already have FFmpeg installed
+      video_formation-0.3.0-no-ffmpeg.zip          (no FFmpeg inside)
+
+Intel Macs: Blender 5.0 no longer runs on Intel Macs, so there is no Intel build.
+
+Do NOT unzip the file. Blender installs the zip as it is.
+
+
+3. INSTALL
+-----------------------------------------------------------------------
+
+1. Open Blender.
+2. Edit > Preferences > Get Extensions.
+3. Click the small arrow (v) at the top right of that window and choose
+   "Install from Disk...".
+4. Select the zip you downloaded and click "Install from Disk".
+   (Dragging the zip onto the Blender window works too.)
+5. Make sure "Video to Formation" is ticked in the list.
+
+Then in the 3D Viewport press N. A new tab called "Video Formation" appears in the
+sidebar.
+
+Check that FFmpeg works: in the Video Formation tab, below "Decoder", you should see
+a tick and "FFmpeg ... (included with the add-on)".
+
+
+4. FIRST SCREEN IN 1 MINUTE
+-----------------------------------------------------------------------
+
+1. Save your .blend file. The baked lights are stored next to it, in a folder called
+   "video_formation". Keep that folder with the .blend.
+2. Video: choose an mp4 / mov file (30 fps or less is plenty).
+3. Screen: choose Grid or Rings, the Drone Count, the Spacing and the Bottom Altitude.
+   The add-on uses the closest full grid or set of rings at or under your number
+   (for example, 2000 gives a 58 x 34 grid = 1972 drones).
+4. Click "Generate Screen". The formation, the storyboard entry and the light
+   effect "Video: <name>" are created, and a preview plays the video in the viewport
+   straight away (switch the viewport to Material Preview to see the colours).
+5. Recalculate the transitions in Skybrush as usual. Once the drones reach the screen
+   they show the video; you can then hide the "Video Formation Preview" collection.
+
+Changed only the colours, the timing or the video? Click "Update Lights". The
+formation and the storyboard stay as they are.
+
+
+5. EXPORTING THE SHOW (.skyc)
+-----------------------------------------------------------------------
+
+Skybrush's export window has its own "Light FPS" setting, and its default is 4.
+Set it to 15 or 30. Otherwise the video is written only 4 times a second.
+
+Open large shows with the latest Skybrush Viewer. Older Viewer versions may fail to
+load shows with thousands of drones ("Failed to load drone show").
+
+
+6. SMOOTH PLAYBACK IN BLENDER
+-----------------------------------------------------------------------
+
+* Before the screen is added to the storyboard, the viewport preview plays at
+  24 fps with up to about 7,000 drones (measured on an Apple M2).
+* Hide the preview collection once the drones show the video.
+* Playback panel > "Fast Playback Setup" switches to a light viewport and to real-time
+  playback.
+* Use Light FPS 15 if playback is still heavy.
+
+
+7. WINDOWS NOTES
+-----------------------------------------------------------------------
+
+* The first time a video is read, your antivirus may scan ffmpeg.exe. That can take a
+  few seconds.
+* If the panel says "FFmpeg found but it does not run", your antivirus has blocked
+  ffmpeg.exe. Allow it. The file is in:
+    %APPDATA%\Blender Foundation\Blender\5.0\extensions\user_default\video_formation\ffmpeg\
+* Windows 11 on ARM runs the included 64-bit FFmpeg through Windows' own emulation.
+
+
+8. MAC NOTES
+-----------------------------------------------------------------------
+
+* Install the zip through Blender as described above. Do not unzip it with Finder
+  and copy files by hand.
+* If macOS says ffmpeg "cannot be opened" or "cannot be verified", go to
+  System Settings > Privacy & Security and click "Allow Anyway", then generate again.
+  The file is in:
+    ~/Library/Application Support/Blender/5.0/extensions/user_default/video_formation/ffmpeg/
+
+
+9. TROUBLESHOOTING
+-----------------------------------------------------------------------
+
+"FFmpeg not found: Blender's reader is used"
+    You installed the no-ffmpeg zip and FFmpeg is not installed. Install FFmpeg, or
+    point the "FFmpeg" field of the panel to the ffmpeg program, or install the
+    Windows / Mac zip instead. Without FFmpeg, Blender's own video reader is used,
+    which is slower.
+
+The video does not appear on the drones
+    The drones show the video only once they are on the screen formation. Recalculate
+    the transitions in Skybrush. Until then the preview collection shows it.
+
+The light effect is broken after moving the .blend
+    Move the "video_formation" folder together with the .blend, or click
+    "Update Lights" to write it again.
+
+Updating to a new version
+    Install the new zip the same way. It replaces the old version.
+
+Removing
+    Edit > Preferences > Get Extensions > Video to Formation > (v) > Uninstall.
+
+
+10. LICENCES
+-----------------------------------------------------------------------
+
+Video to Formation is free software under the GNU General Public License v3 or later
+(GPL-3.0-or-later).
+
+The Windows and Mac packages include FFmpeg, a separate program made by the FFmpeg
+developers (https://ffmpeg.org). FFmpeg is licensed under the GNU GPL. Its licence
+text and where to get its source code are in the add-on's "ffmpeg" folder. The
+Windows build comes from gyan.dev, the macOS build from Martin Riedl's FFmpeg build
+server (ffmpeg.martin-riedl.de). FFmpeg is a trademark of Fabrice Bellard.
+
+Skybrush and Skybrush Studio are made by CollMot Robotics. This add-on is a community
+project and is not affiliated with or endorsed by CollMot Robotics or the FFmpeg project.
