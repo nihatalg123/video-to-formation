@@ -1,0 +1,25 @@
+schema_version = "1.0.0"
+
+id = "video_formation"
+version = "0.3.0"
+name = "Video to Formation"
+tagline = "Play a video on a drone screen in Skybrush Studio"
+maintainer = "Nihat Alg"
+
+type = "add-on"
+
+tags = ["Animation", "Import-Export"]
+
+blender_version_min = "5.0.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+[permissions]
+files = "Read the chosen video and write the baked light table next to the .blend"
+
+# No external Python dependencies: numpy ships with Blender. The platform builds
+# (windows-x64, macos-arm64) carry an FFmpeg program in ffmpeg/ and add a
+# `platforms` line here (tools/build_release.py); the plain build uses an installed
+# FFmpeg, otherwise Blender's own video reader. See DEVELOPMENT.md.
