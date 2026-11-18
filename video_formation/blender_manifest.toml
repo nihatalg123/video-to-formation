@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
 id = "video_formation"
-version = "0.3.0"
+version = "0.4.0"
 name = "Video to Formation"
-tagline = "Play a video on a drone screen in Skybrush Studio"
+tagline = "Play a video or scrolling text on a drone screen in Skybrush"
 maintainer = "Nihat Alg"
 
 type = "add-on"

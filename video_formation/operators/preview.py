@@ -1,7 +1,8 @@
 """Preview: the screen at the current frame, as a picture in the Image Editor.
 
-Decodes just the one video frame the current scene frame shows, so framing (fit,
-aspect, shape) and colour settings can be checked in a second, before baking.
+Video: decodes just the one video frame the current scene frame shows, so framing
+(fit, aspect, shape) and colour settings can be checked in a second, before baking.
+Text: draws the scrolling text at the current frame (counted from Start Frame).
 """
 
 from __future__ import annotations
@@ -12,8 +13,8 @@ import bpy
 import numpy as np
 from bpy.types import Operator
 
-from ..core import bake, plan, preview, sampling
-from .generate import resolve_video, scene_fps
+from ..core import bake, plan, preview, sampling, textscreen
+from .generate import is_text, resolve_video, scene_fps, text_renderer
 
 IMAGE_NAME = "Video Formation Preview"
 
@@ -47,12 +48,15 @@ class VIDEOFORMATION_OT_preview(Operator):
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.video_formation.video_path)
+        s = context.scene.video_formation
+        return bool(s.text.strip()) if is_text(s) else bool(s.video_path)
 
     def execute(self, context):
         from ..blender_io import video
 
         settings = context.scene.video_formation
+        if is_text(settings):
+            return self._text(context, settings)
         try:
             job = plan.read_settings(settings)
             path = resolve_video(settings.video_path)
@@ -83,6 +87,29 @@ class VIDEOFORMATION_OT_preview(Operator):
             f"Preview at {t:.2f} s: {screen.count} drones, {screen.width_m:.1f} x "
             f"{screen.height_m:.1f} m — open an Image Editor to see '{IMAGE_NAME}'",
         )
+        return {"FINISHED"}
+
+    def _text(self, context, settings):
+        try:
+            job = plan.read_settings(settings)
+            tj = plan.read_text_job(settings)
+            tp, screen = plan.build_text(job, tj, text_renderer(settings, context.scene))
+            fps = scene_fps(context.scene)
+            t = (context.scene.frame_current - int(job.start_frame)) / fps
+            if not 0.0 <= t <= tp.duration:
+                t = tp.duration * 0.4  # outside the text's time: show it mid-way
+            colors = textscreen.frame_colors(tp, tj, t, plan.text_grade(job))
+            pic = preview.render(screen.positions, colors, screen.spacing, 900)
+            show_image(context, pic)
+        except ValueError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        except Exception as exc:  # pragma: no cover
+            traceback.print_exc()
+            self.report({"ERROR"}, f"{exc.__class__.__name__}: {exc}")
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Preview at {t:.2f} s: {textscreen.describe(tp)} — open an Image "
+                              f"Editor to see '{IMAGE_NAME}'")
         return {"FINISHED"}
 
 

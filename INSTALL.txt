@@ -1,11 +1,11 @@
 VIDEO TO FORMATION - INSTALLATION GUIDE
-Version 0.3.0  ·  Developer: @nihatalg
+Version 0.4.0  ·  Developer: @nihatalg
 =======================================================================
 
-Video to Formation is a Blender extension for Skybrush Studio. It plays a video on a
-drone screen: it builds a Grid or Rings screen formation, adds it to the storyboard
-and bakes the video into a standard Skybrush light effect (15 or 30 light frames a
-second). Tested with screens of up to 5,000 drones.
+Video to Formation is a Blender extension for Skybrush Studio. It plays a video or a
+scrolling text on a drone screen: it builds the screen formation, adds it to the
+storyboard and bakes the video or the text into a standard Skybrush light effect (15 or
+30 light frames a second). Tested with screens of up to 5,000 drones.
 
 
 1. WHAT YOU NEED
@@ -24,13 +24,13 @@ packages. You do not need to install it.
 -----------------------------------------------------------------------
 
   Windows (64-bit, also Windows 11 on ARM)
-      video_formation-0.3.0-windows-x64.zip        (FFmpeg 9.0.2 included)
+      video_formation-0.4.0-windows-x64.zip        (FFmpeg 9.0.2 included)
 
   Mac with Apple Silicon (M1, M2, M3, M4 ...)
-      video_formation-0.3.0-macos-arm64.zip        (FFmpeg 9.0.2 included)
+      video_formation-0.4.0-macos-arm64.zip        (FFmpeg 9.0.2 included)
 
   Linux, or you already have FFmpeg installed
-      video_formation-0.3.0-no-ffmpeg.zip          (no FFmpeg inside)
+      video_formation-0.4.0-no-ffmpeg.zip          (no FFmpeg inside)
 
 Intel Macs: Blender 5.0 no longer runs on Intel Macs, so there is no Intel build.
 
@@ -72,6 +72,25 @@ a tick and "FFmpeg ... (included with the add-on)".
 
 Changed only the colours, the timing or the video? Click "Update Lights". The
 formation and the storyboard stay as they are.
+
+
+4b. SCROLLING TEXT
+-----------------------------------------------------------------------
+
+1. At the top of the Video Formation tab, switch Source to "Text".
+2. Type the text (one line). English and Turkish letters, digits, punctuation and
+   the heart symbol work.
+3. Letters: LED (thin dot letters), Block (chunky capitals) or Font (smooth letters
+   from a .ttf / .otf file; empty Font File = Blender's built-in font).
+4. Screen: Banner (wide, for sentences) or Big Letters (about square, for short
+   words: 100 drones with Block letters make a 10 x 10 screen).
+5. Set the Drone Count in the Screen section. The panel shows the screen it will
+   build, how many letters are visible and how long the text takes.
+6. Click "Generate Screen". The text screen gets its own formation ("Text Screen")
+   and light effect ("Text: Text Screen"), so it can sit next to a video screen.
+
+Speed 0 = automatic. Passes = how many times the text crosses the screen. Smooth
+Motion off makes the letters jump one drone at a time, like an LED sign.
 
 
 5. EXPORTING THE SHOW (.skyc)
@@ -145,7 +164,8 @@ Removing
 -----------------------------------------------------------------------
 
 Video to Formation is free software under the GNU General Public License v3 or later
-(GPL-3.0-or-later).
+(GPL-3.0-or-later). Its LED and Block dot fonts were drawn for it and are under the
+same licence.
 
 The Windows and Mac packages include FFmpeg, a separate program made by the FFmpeg
 developers (https://ffmpeg.org). FFmpeg is licensed under the GNU GPL. Its licence

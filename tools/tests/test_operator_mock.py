@@ -37,8 +37,13 @@ class Bag(types.SimpleNamespace):
 
 
 class IDColl(dict):
+    """Like bpy_prop_collection: indexed by name, iterates over the items."""
+
     def get(self, k, d=None):
         return dict.get(self, k, d)
+
+    def __iter__(self):
+        return iter(list(self.values()))
 
     def remove(self, item):
         for k, v in list(self.items()):
@@ -77,7 +82,7 @@ bpy = types.ModuleType("bpy")
 props = types.ModuleType("bpy.props")
 btypes = types.ModuleType("bpy.types")
 utils = types.ModuleType("bpy.utils")
-for n in ["BoolProperty", "EnumProperty", "FloatProperty", "IntProperty", "StringProperty",
+for n in ["BoolProperty", "EnumProperty", "FloatProperty", "FloatVectorProperty", "IntProperty", "StringProperty",
           "PointerProperty", "CollectionProperty"]:
     setattr(props, n, (lambda name: (lambda **k: ("PROP", name, k)))(n))
 
@@ -375,7 +380,7 @@ def name_clash():
     s.video_path, s.decoder, s.drone_count, s.show_preview = video, "FFMPEG", 300, False
     for _ in range(3):
         result, _msgs = run_op(scene, s)
-    kids = sorted(collections["Formations"].children)
+    kids = sorted(collections["Formations"].children.keys())
     entries = [e for e in scene.skybrush.storyboard.entries if e.formation is not None
                and e.formation.name.startswith("Video Screen")]
     check("name clash: one formation 'Video Screen.001', reused on every Generate",
@@ -386,8 +391,83 @@ def name_clash():
           f"{len(entries)} entries, {len(scene.skybrush.light_effects.entries)} effects")
 
 
+def text_screen():
+    """Text source next to a video screen: its own formation, entry and effect; the
+    baked letters reach the effect; Update Lights with a same-size text; Font letters."""
+    BLEND["path"] = ""
+    collections.clear()
+    folder = tempfile.mkdtemp(prefix="vf_text_")
+    video = os.path.join(folder, "v.mp4")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x90:r=24:d=1",
+                    "-pix_fmt", "yuv420p", video], check=True)
+    scene = new_scene()
+    s = settings_defaults()
+    s.video_path, s.decoder, s.drone_count, s.show_preview = video, "FFMPEG", 300, False
+    result, _ = run_op(scene, s)
+    check("video screen first", result == {"FINISHED"})
+    s.source, s.text, s.text_style, s.text_layout, s.drone_count = "TEXT", "HELLO", "BLOCK", "BIG", 100
+    s.text_colour = (1.0, 0.0, 0.0)
+    s.light_fps = "30"
+    result, msgs = run_op(scene, s)
+    print("    " + s.last_report.replace("\n", "\n    "))
+    kids = sorted(collections["Formations"].children.keys())
+    check("text screen: its own formation next to the video one",
+          result == {"FINISHED"} and kids == ["Text Screen", "Video Screen"] and s.text_formation_name == "Text Screen",
+          f"{kids} {msgs[-1:]}")
+    f = collections["Formations"].children["Text Screen"]
+    check("100 drones, Block, Big Letters: 10 x 10 markers", len(f.objects) == 100 == s.result_count)
+    names = [e.name for e in scene.skybrush.light_effects.entries]
+    check("light effects 'Video: Video Screen' and 'Text: Text Screen'",
+          sorted(names) == ["Text: Text Screen", "Video: Video Screen"], str(names))
+    entries = [e.name for e in scene.skybrush.storyboard.entries]
+    check("storyboard: takeoff, video, text", entries == ["Takeoff", "Video Screen", "Text Screen"], str(entries))
+    eff = [e for e in scene.skybrush.light_effects.entries if e.name == "Text: Text Screen"][0]
+    table = lighttable.load(s.last_table)
+    fn = load_like_skybrush(eff.color_function.path).color_function
+    mid = table.start_frame + table.scene_frames // 2
+    cols = np.array([fn(frame=mid, time_fraction=0, drone_index=i, formation_index=i,
+                        position=tuple(f.objects[i].location), drone_count=100) for i in range(100)])
+    red = cols[:, 0] > 0.9
+    check("the effect shows red letters on the screen mid-way", 15 < red.sum() < 85 and cols[red][:, 1:3].max() < 0.01,
+          f"{int(red.sum())} red drones")
+    first = np.array([fn(frame=table.start_frame, time_fraction=0, drone_index=i, formation_index=i,
+                         position=tuple(f.objects[i].location), drone_count=100) for i in range(100)])
+    check("and nothing yet when it starts (the text enters from the right)", first[:, 0].max() < 0.1)
+    # Update Lights: another word, same size
+    s.text = "WORLD"
+    result, _ = run_op(scene, s, lights_only=True)
+    check("Update Lights with a new text of the same screen size", result == {"FINISHED"}
+          and len(collections["Formations"].children["Text Screen"].objects) == 100, s.last_report[:200])
+    # Update Lights must refuse a different size
+    s.drone_count = 300
+    result, _ = run_op(scene, s, lights_only=True)
+    check("Update Lights refuses when the text screen size changed", result == {"CANCELLED"})
+    s.drone_count = 100
+    # Font letters through a stand-in renderer (Blender's font engine is not here)
+    from video_formation.core import textscreen as ts
+
+    def fake_renderer(settings, scene=None):
+        def render(text, rows):
+            w = len(text) * 0.6
+            return ts.rasterize_triangles(np.array([[[0, 0], [w, 0], [w, 1]], [[0, 0], [w, 1], [0, 1]]]), rows)
+        return render
+    real = generate.text_renderer
+    generate.text_renderer = fake_renderer
+    try:
+        s.text_style, s.text_layout, s.drone_count = "FONT", "BANNER", 600
+        result, _ = run_op(scene, s)
+    finally:
+        generate.text_renderer = real
+    check("Font letters: Generate rebuilds the text screen", result == {"FINISHED"}
+          and len(collections["Formations"].children["Text Screen"].objects) == s.result_count <= 600,
+          s.last_report.splitlines()[0])
+    s.text = ""
+    check("empty text: Generate is greyed out", not generate.VIDEOFORMATION_OT_generate.poll(Bag(scene=scene)))
+
+
 main()
 name_clash()
+text_screen()
 print()
 print("ALL PASS" if not FAILS else f"{len(FAILS)} FAILED: {FAILS}")
 sys.exit(1 if FAILS else 0)

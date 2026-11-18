@@ -80,6 +80,14 @@ def grid_dims(target: int, aspect: float) -> tuple[int, int]:
 def make_grid(target: int, aspect: float, spacing: float, *, centre_x: float = 0.0,
               depth_y: float = 0.0, bottom_z: float = 0.0) -> Screen:
     cols, rows = grid_dims(target, aspect)
+    return grid_from_dims(cols, rows, spacing, centre_x=centre_x, depth_y=depth_y, bottom_z=bottom_z)
+
+
+def grid_from_dims(cols: int, rows: int, spacing: float, *, centre_x: float = 0.0,
+                   depth_y: float = 0.0, bottom_z: float = 0.0) -> Screen:
+    """A ``cols`` x ``rows`` grid. Drone i sits at row i // cols (0 = top row) and
+    column i % cols (0 = left), seen from the front."""
+    cols, rows = max(1, int(cols)), max(1, int(rows))
     p = float(spacing)
     c = np.arange(cols, dtype=np.float64)
     r = np.arange(rows, dtype=np.float64)

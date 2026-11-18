@@ -1,12 +1,17 @@
-"""Generate: video -> screen formation + baked lights in Skybrush (DEVELOPMENT.md §6).
+"""Generate: video or text -> screen formation + baked lights in Skybrush
+(DEVELOPMENT.md §6, §6.9).
 
 ``Generate Screen`` builds (or updates) the screen formation, its storyboard entry,
-the light effect and a viewport preview. ``Update Lights`` only re-bakes the video
-onto the existing screen — brightness, timing, a new video — without touching the
-formation or the storyboard.
+the light effect and a viewport preview. ``Update Lights`` only re-bakes the
+colours onto the existing screen — brightness, timing, a new video or text of the
+same screen size — without touching the formation or the storyboard.
 
-The video is decoded and baked first; the scene is only changed once that worked.
-Errors are shown in a popup as well as in the status bar, so they cannot be missed.
+The Source decides what is shown: a video file (Grid or Rings screen) or a
+scrolling text (a grid sized to the text). The video screen and the text screen
+have their own names, so a show can have both.
+
+The colours are baked first; the scene is only changed once that worked. Errors
+are shown in a popup as well as in the status bar, so they cannot be missed.
 """
 
 # No `from __future__ import annotations`: Blender reads property annotations
@@ -23,7 +28,7 @@ import numpy as np
 from bpy.props import BoolProperty
 from bpy.types import Operator
 
-from ..core import bake, lighttable, plan, sampling
+from ..core import bake, lighttable, plan, sampling, textscreen
 from ..core.decode import VIDEO_EXTENSIONS
 
 _ADDON = __package__.rpartition(".")[0]
@@ -36,6 +41,28 @@ def scene_fps(scene) -> float:
 def safe_name(name: str) -> str:
     text = re.sub(r"[^A-Za-z0-9._ -]+", "_", str(name)).strip(" .")
     return text or "Video Screen"
+
+
+def is_text(settings) -> bool:
+    return str(getattr(settings, "source", "VIDEO")) == "TEXT"
+
+
+def screen_name(settings) -> str:
+    if is_text(settings):
+        return settings.text_screen_name or "Text Screen"
+    return settings.screen_name or "Video Screen"
+
+
+def _formation_prop(settings) -> str:
+    return "text_formation_name" if is_text(settings) else "formation_name"
+
+
+def text_renderer(settings, scene=None):
+    """The smooth-font renderer when the Font letters are chosen, else None."""
+    if str(settings.text_style) != "FONT":
+        return None
+    from ..blender_io import textfont
+    return textfont.renderer(settings.text_font, scene)
 
 
 def resolve_video(path: str) -> str:
@@ -73,11 +100,11 @@ def output_folder(settings) -> tuple[str, str]:
                 "file and press Update Lights to keep them next to it.")
     else:
         base = os.path.normpath(bpy.path.abspath(raw))
-    return os.path.join(base, safe_name(settings.screen_name)), note
+    return os.path.join(base, safe_name(screen_name(settings))), note
 
 
 def _effect_name(settings) -> str:
-    return f"Video: {settings.screen_name}"
+    return f"{'Text' if is_text(settings) else 'Video'}: {screen_name(settings)}"
 
 
 def _popup(context, lines, title, icon):
@@ -95,21 +122,22 @@ class VIDEOFORMATION_OT_generate(Operator):
     bl_idname = "video_formation.generate"
     bl_label = "Generate Screen"
     bl_description = (
-        "Build the drone screen (Grid or Rings) as a Skybrush formation, put it in the "
-        "storyboard and bake the video onto its lights as a light effect"
+        "Build the drone screen as a Skybrush formation, put it in the storyboard and bake "
+        "the video or the scrolling text onto its lights as a light effect"
     )
     bl_options = {"REGISTER", "UNDO"}
 
     lights_only: BoolProperty(
         name="Lights Only",
-        description="Re-bake the video onto the existing screen; formation and storyboard are kept",
+        description="Re-bake the colours onto the existing screen; formation and storyboard are kept",
         default=False,
         options={"SKIP_SAVE"},
     )
 
     @classmethod
     def poll(cls, context):
-        return bool(context.scene.video_formation.video_path)
+        s = context.scene.video_formation
+        return bool(s.text.strip()) if is_text(s) else bool(s.video_path)
 
     def execute(self, context):
         settings = context.scene.video_formation
@@ -147,17 +175,26 @@ class VIDEOFORMATION_OT_generate(Operator):
         t_start = time.perf_counter()
         scene = context.scene
         job = plan.read_settings(settings)
-        path = resolve_video(settings.video_path)
-        decoder = video.choose_decoder(settings.decoder)
-        info = video.probe(path, decoder)
         fps_scene = scene_fps(scene)
         light_fps = min(plan.light_fps_value(job, fps_scene), fps_scene)
+        text_mode = is_text(settings)
 
-        screen = plan.build_screen(job, info.width, info.height)
+        # ---- the screen (cheap: nothing decoded or baked yet)
+        if text_mode:
+            tj = plan.read_text_job(settings)
+            tp, screen = plan.build_text(job, tj, text_renderer(settings, scene))
+            times = textscreen.light_times(tp, light_fps)
+        else:
+            path = resolve_video(settings.video_path)
+            decoder = video.choose_decoder(settings.decoder)
+            info = video.probe(path, decoder)
+            screen = plan.build_screen(job, info.width, info.height)
+            times = sampling.light_times(info.duration, light_fps, job.video_start, job.video_length)
         notes = plan.check_screen(job, screen)
         has_sb = skybrush.available(context)
-        name = settings.screen_name or "Video Screen"
-        formation = skybrush.find_formation(settings.formation_name, name) if has_sb else None
+        name = screen_name(settings)
+        fprop = _formation_prop(settings)
+        formation = skybrush.find_formation(getattr(settings, fprop), name) if has_sb else None
         positions = screen.positions
 
         if self.lights_only and has_sb:
@@ -171,13 +208,9 @@ class VIDEOFORMATION_OT_generate(Operator):
                 )
             positions = np.array([tuple(m.matrix_world.translation) for m in markers])
 
-        # ---- decode + bake (the scene is not touched yet)
-        times = sampling.light_times(info.duration, light_fps, job.video_start, job.video_length)
-        size = bake.decode_size(screen, job.fit, info.width, info.height)
+        # ---- bake the colours (the scene is not touched yet)
         n = len(times)
         wm.progress_begin(0, n)
-        print(f"[video_formation] reading {n} frames of {os.path.basename(path)} with the "
-              f"{decoder.lower()} decoder at {size[0]}x{size[1]} ...")
         t0 = time.perf_counter()
 
         def progress(done, total):
@@ -185,8 +218,15 @@ class VIDEOFORMATION_OT_generate(Operator):
             if done % 100 == 0 or done == total:
                 print(f"[video_formation]   {done}/{total} frames")
 
-        frames = video.read_frames(path, info, times, light_fps, size, decoder, None)
-        colors = bake.bake_colors(screen, frames, n, size, job.fit, plan.grade_of(job), progress)
+        if text_mode:
+            print(f"[video_formation] text: {n} light frames, {textscreen.describe(tp)}")
+            colors = textscreen.bake(tp, tj, times, plan.text_grade(job), progress)
+        else:
+            size = bake.decode_size(screen, job.fit, info.width, info.height)
+            print(f"[video_formation] reading {n} frames of {os.path.basename(path)} with the "
+                  f"{decoder.lower()} decoder at {size[0]}x{size[1]} ...")
+            frames = video.read_frames(path, info, times, light_fps, size, decoder, None)
+            colors = bake.bake_colors(screen, frames, n, size, job.fit, plan.grade_of(job), progress)
         t_decode = time.perf_counter() - t0
         duration = sampling.scene_frames_for(n, light_fps, fps_scene)
 
@@ -198,7 +238,7 @@ class VIDEOFORMATION_OT_generate(Operator):
             if not self.lights_only:
                 formation, what_f = skybrush.put_formation(name, screen.positions, formation)
             if formation is not None:
-                settings.formation_name = formation.name
+                setattr(settings, fprop, formation.name)
             entry = skybrush.entry_of(context, formation) if formation is not None else None
             if entry is None and settings.add_storyboard and not self.lights_only:
                 wanted = None if settings.start_mode == "AUTO" else start
@@ -214,8 +254,8 @@ class VIDEOFORMATION_OT_generate(Operator):
                 if int(entry.duration) < duration:
                     notes.append(
                         f"WARN the storyboard entry '{entry.name}' lasts {int(entry.duration)} "
-                        f"frames but the video needs {duration}; lengthen the entry or the "
-                        "screen leaves before the video ends."
+                        f"frames but the {'text' if text_mode else 'video'} needs {duration}; "
+                        "lengthen the entry or the screen leaves before it ends."
                     )
         elif settings.start_mode == "AUTO":
             start = int(scene.frame_start)
@@ -259,7 +299,8 @@ class VIDEOFORMATION_OT_generate(Operator):
         end = start + duration - 1
         if scene.frame_end < end:
             scene.frame_end = end
-            notes.append(f"NOTE the scene's end frame was moved to {end} so the whole video fits.")
+            notes.append(f"NOTE the scene's end frame was moved to {end} so the whole "
+                         f"{'text' if text_mode else 'video'} fits.")
         if settings.show_preview:
             try:
                 viewport.build(name, positions, screen.spacing, data_path, scene)
@@ -278,11 +319,19 @@ class VIDEOFORMATION_OT_generate(Operator):
         head = (f"Screen: {screen.count} drones, {screen.shape.title()} "
                 f"{_dims(screen)}, {screen.width_m:.1f} x {screen.height_m:.1f} m, "
                 f"spacing {screen.spacing:.2f} m")
-        timing = (f"Video {info.width}x{info.height} {info.fps:.2f} fps -> {n} light frames at "
-                  f"{light_fps:g} fps = scene frames {start}-{end} "
-                  f"({duration / fps_scene:.1f} s at {fps_scene:g} fps)")
-        cost = (f"Baked in {t_decode:.1f} s ({decoder.lower()} decoder, {size[0]}x{size[1]}); "
-                f"light table {mb:.1f} MB in {folder}")
+        span = (f"{n} light frames at {light_fps:g} fps = scene frames {start}-{end} "
+                f"({duration / fps_scene:.1f} s at {fps_scene:g} fps)")
+        if text_mode:
+            timing = f"Text: {textscreen.describe(tp)} -> {span}"
+            cost = f"Baked in {t_decode:.1f} s; light table {mb:.1f} MB in {folder}"
+            unknown = tp.info.get("unknown") or []
+            if unknown:
+                notes.append("NOTE these characters are not in the font and show as '?': "
+                             + " ".join(unknown))
+        else:
+            timing = f"Video {info.width}x{info.height} {info.fps:.2f} fps -> {span}"
+            cost = (f"Baked in {t_decode:.1f} s ({decoder.lower()} decoder, {size[0]}x{size[1]}); "
+                    f"light table {mb:.1f} MB in {folder}")
         report = [head, timing, cost] + lines + notes
         report.append(f"Done in {time.perf_counter() - t_start:.1f} s.")
         return report

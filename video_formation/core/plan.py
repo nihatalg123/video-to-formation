@@ -10,7 +10,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from . import layout, sampling
+from . import layout, sampling, textscreen
 
 LIGHT_FPS = {"15": 15.0, "30": 30.0}
 
@@ -115,3 +115,58 @@ def check_screen(job: Job, screen: layout.Screen) -> list[str]:
             "fill the rest with another formation."
         )
     return notes
+
+
+# --------------------------------------------------------------------- text
+
+TEXT_FIELDS = {
+    "text": "text", "text_style": "style", "text_layout": "layout", "text_height": "height",
+    "text_margin": "margin",
+    "text_speed": "speed", "text_loops": "loops", "text_gap": "gap", "text_smooth": "smooth",
+    "text_colour_mode": "colour_mode",
+}
+
+
+def srgb_to_linear(c) -> tuple:
+    c = np.clip(np.asarray(tuple(c)[:3], dtype=np.float64), 0.0, 1.0)
+    return tuple(float(v) for v in np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4))
+
+
+def read_text_job(settings) -> textscreen.TextJob:
+    """The Text settings of the panel; colours arrive as sRGB and leave linear."""
+    tj = textscreen.TextJob()
+    for prop, name in TEXT_FIELDS.items():
+        if hasattr(settings, prop):
+            value = getattr(settings, prop)
+            try:
+                setattr(tj, name, type(getattr(tj, name))(value))
+            except (TypeError, ValueError):
+                pass
+    if hasattr(settings, "text_colour"):
+        tj.colour = srgb_to_linear(settings.text_colour)
+    if hasattr(settings, "text_background"):
+        tj.background = srgb_to_linear(settings.text_background)
+    return tj
+
+
+def build_text(job: Job, tj: textscreen.TextJob, render_font=None):
+    """(TextPlan, Screen) for the Text source."""
+    tp = textscreen.plan(tj, int(job.drone_count), render_font)
+    by_width = str(job.size_mode).upper() == "WIDTH"
+    screen = textscreen.make_screen(
+        tp,
+        spacing=None if by_width else float(job.spacing),
+        width_m=float(job.width) if by_width else None,
+        centre_x=float(job.centre_x),
+        depth_y=float(job.depth_y),
+        bottom_z=float(job.bottom_z),
+    )
+    return tp, screen
+
+
+def text_grade(job: Job) -> sampling.Grade:
+    """The video grade minus what makes no sense for text (black cut, smoothing)."""
+    g = grade_of(job)
+    g.black_cut = 0.0
+    g.smoothing = 0.0
+    return g

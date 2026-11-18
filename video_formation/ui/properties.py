@@ -8,6 +8,7 @@ from bpy.props import (
     BoolProperty,
     EnumProperty,
     FloatProperty,
+    FloatVectorProperty,
     IntProperty,
     PointerProperty,
     StringProperty,
@@ -16,6 +17,17 @@ from bpy.types import PropertyGroup
 
 
 class VideoFormationSettings(PropertyGroup):
+    source: EnumProperty(
+        name="Source",
+        description="What the screen shows",
+        items=[
+            ("VIDEO", "Video", "Play a video file on a Grid or Rings screen", "SEQUENCE", 0),
+            ("TEXT", "Text", "Scroll a text from right to left on a screen sized to the text",
+             "FONT_DATA", 1),
+        ],
+        default="VIDEO",
+    )
+
     # ----------------------------------------------------------------- video
     video_path: StringProperty(
         name="Video",
@@ -61,6 +73,110 @@ class VideoFormationSettings(PropertyGroup):
         ),
         subtype="FILE_PATH",
         default="",
+    )
+
+    # ------------------------------------------------------------------ text
+    text: StringProperty(
+        name="Text",
+        description=(
+            "The text that scrolls across the screen (one line). English and Turkish letters, "
+            "digits, punctuation and ♥"
+        ),
+        default="VIDEO TO FORMATION",
+    )
+    text_style: EnumProperty(
+        name="Letters",
+        description="How the letters are drawn",
+        items=[
+            ("LED", "LED", "Dot-matrix letters, 7 drones high (or 14, 21 ...), thin strokes; "
+             "upper and lower case", 0),
+            ("BLOCK", "Block", "Chunky capitals, 5 drones high (or 10, 15 ...); with Big "
+             "Letters 100 drones make a 10 x 10 screen with 2-drone strokes", 1),
+            ("FONT", "Font", "Smooth letters from any font file (.ttf / .otf), any height; "
+             "best from about 10 rows", 2),
+        ],
+        default="LED",
+    )
+    text_layout: EnumProperty(
+        name="Screen",
+        description="The shape of the text screen",
+        items=[
+            ("BANNER", "Banner", "Wide: the biggest letters that still show about 4-5 at "
+             "once. For sentences", 0),
+            ("BIG", "Big Letters", "About square: letters as big as the screen, one or two at "
+             "a time. For short words", 1),
+        ],
+        default="BANNER",
+    )
+    text_font: StringProperty(
+        name="Font File",
+        description="A .ttf / .otf font for the Font letters (empty = Blender's built-in font)",
+        subtype="FILE_PATH",
+        default="",
+    )
+    text_height: IntProperty(
+        name="Text Height",
+        description=(
+            "Rows of drones the letters are high (0 = automatic, from the Screen shape and the "
+            "drone count). LED letters use multiples of 7, Block multiples of 5"
+        ),
+        default=0, min=0, soft_max=60,
+    )
+    text_margin: IntProperty(
+        name="Margin Rows",
+        description="Empty rows of drones above and below the text",
+        default=0, min=0, max=10,
+    )
+    text_speed: FloatProperty(
+        name="Speed",
+        description=(
+            "Letters per second (0 = automatic: 2 on a banner, slower when only a letter or "
+            "two fit so each stays about 3 s on screen)"
+        ),
+        default=0.0, min=0.0, soft_max=10.0,
+    )
+    text_loops: IntProperty(
+        name="Passes",
+        description="How many times the text crosses the screen",
+        default=1, min=1, soft_max=20,
+    )
+    text_gap: FloatProperty(
+        name="Gap",
+        description="Empty space between two passes, in letters",
+        default=3.0, min=0.0, soft_max=20.0,
+    )
+    text_smooth: BoolProperty(
+        name="Smooth Motion",
+        description=(
+            "Move the letters by fractions of a drone, so they glide (off: they jump one "
+            "drone at a time, like an LED sign)"
+        ),
+        default=True,
+    )
+    text_colour_mode: EnumProperty(
+        name="Colour",
+        items=[
+            ("SOLID", "Solid", "One colour for the text", 0),
+            ("RAINBOW", "Rainbow", "The colours of the rainbow along the text", 1),
+        ],
+        default="SOLID",
+    )
+    text_colour: FloatVectorProperty(
+        name="Text Colour", subtype="COLOR_GAMMA", size=3, min=0.0, max=1.0,
+        default=(1.0, 1.0, 1.0),
+    )
+    text_background: FloatVectorProperty(
+        name="Background", subtype="COLOR_GAMMA", size=3, min=0.0, max=1.0,
+        default=(0.0, 0.0, 0.0),
+        description="Colour of the drones that are not part of a letter (Minimum LED still applies)",
+    )
+    text_screen_name: StringProperty(
+        name="Name", description="Name of the text screen's formation and of its light effect",
+        default="Text Screen",
+    )
+    text_formation_name: StringProperty(
+        default="", options={"HIDDEN"},
+        description="The text screen's formation as Skybrush named it (may end in .001)",
     )
 
     # ---------------------------------------------------------------- screen

@@ -1,6 +1,6 @@
 # Video to Formation — development notes
 
-v0.3.0, 2026-11-10. A separate Blender 5.0 extension (`id = "video_formation"`), sidebar
+v0.4.0, 2026-11-19. A separate Blender 5.0 extension (`id = "video_formation"`), sidebar
 tab *Video Formation*. Shares nothing at runtime with Image to Formation; conventions
 (coordinates, linear colours, CSV format) are the same on purpose.
 
@@ -219,6 +219,45 @@ nobody has to install it.
   the add-on)", a found path, or "not found: Blender's reader is used"). Checked once
   per FFmpeg-field value (runs `ffmpeg -version`), again after each Generate.
 
+## 6.9 v0.4.0 — scrolling text (`core/ledfont.py`, `core/textscreen.py`, `blender_io/textfont.py`)
+
+Source = Text: a line of text slides right to left over a grid sized to the text.
+
+* **Strip.** The text is drawn once as a (rows, W) array, one column per drone column,
+  0..1 = how lit. The screen is exactly the strip's rows (+ margin rows) high and
+  `drone_count // rows` columns wide. Each light frame samples the strip at
+  `x = column - offset(t)`, `offset = cols - speed * t`: the text starts just off the
+  right edge and ends just off the left (duration `(cols + W_all) / speed`). Smooth
+  Motion interpolates between columns; off, the offset is rounded (crisp LED-sign
+  steps). Passes repeat the strip with a gap.
+* **Fonts.** `ledfont`: LED = 5 x 7 glyphs (ASCII + Turkish + ° € ♥; all fit 7 rows,
+  marked capitals 5 rows under the mark, lowercase tails tucked in), proportional,
+  1-column gap; BLOCK = 5-row capitals (lowercase shown as capitals, English i -> I),
+  3x5 digits. Dot fonts scale by whole numbers (k x k drones per dot). Accented
+  letters fall back to their base letter (NFD), the rest to '?' (reported). A derived
+  bold (dilating the 5 x 7 glyphs) was tried and dropped: 38 glyphs have 1-column gaps
+  (m, w, M, N, ...) that close up.
+* **Font letters.** `blender_io/textfont.py` makes a temporary text object (font from
+  the file, or Blender's built-in), evaluates it to a filled mesh, reads its loop
+  triangles and removes the object again. `textscreen.rasterize_triangles` maps the
+  text's ink height to the rows, samples 6 x 6 per drone and sharpens the coverage
+  (smoothstep 0.12..0.67) so thin strokes still light their drone.
+* **Size.** Banner: the largest dot scale (or font height) that still shows
+  `MIN_VISIBLE` = 4.5 letters. Big Letters: the largest whose screen is still at least
+  as wide as high (100 drones, Block -> 10 x 10 with 2 x 2-drone dots, like the
+  reference recording). Text Height overrides (dot fonts: nearest multiple).
+* **Speed.** Letters per second; 0 = automatic `min(2, (visible + 1) / 3)`: 2 letters/s
+  on banners, and on big letters each letter stays about 3 s on screen.
+* **Colours.** Solid (sRGB picker -> linear) or rainbow along the strip; background
+  colour; the video grade minus black cut and smoothing (brightness, saturation,
+  floor, maximum LED).
+* **Skybrush.** Same path as the video: formation (own name *Text Screen*, own
+  `text_formation_name`), storyboard entry, light table + Function (or Image) effect
+  *Text: <name>*, viewport preview. Update Lights re-bakes a changed text when the
+  screen size is unchanged, else refuses.
+* **Panel.** Source switch on top; Text options; a live summary of the screen
+  (dot fonts only: the Font letters need Blender's font engine, shown after Generate).
+
 ## 7. Verification
 
 Offline (no Blender): `tools/tests/test_core.py` — 35 checks, all pass: layouts (count,
@@ -229,6 +268,17 @@ moved screen, wrong formation, re-bake picked up, 3 ms/frame), FFmpeg decode of 
 red/green/blue video (colours and timing, Start At / Length).
 `tools/tests/test_ui_mock.py` — fake bpy: registers 10 classes, every panel draws, every
 core setting has a property.
+
+v0.4.0 adds `t_text` (fonts cover English + Turkish; sizes for 100–2000 drones in
+both layouts, never over the drone count; enters right / leaves left, moves right to
+left, crisp vs smooth motion; passes; red text on a floored background; rainbow; bake
+shape; grid spacing and drone order; the triangle rasterizer on known shapes; Font
+sizing with a stand-in renderer), Text-mode panel drawing and its live summary
+(`test_ui_mock.py`), and a text screen next to a video screen through the fake
+Skybrush (`test_operator_mock.py`: own formation / entry / effect, red letters in the
+effect mid-way, nothing at the start, Update Lights same size / refused on a new
+size, Font letters via a stand-in renderer). **Not run in Blender yet:** the Font
+letters' Blender side (`blender_io/textfont.py`: temporary text object -> mesh).
 
 v0.3.0 adds `t_find_tool`: bundled FFmpeg found first and made runnable after a
 permission-dropping unzip, the FFmpeg field still wins, Windows names / folders, and a

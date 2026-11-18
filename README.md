@@ -1,7 +1,7 @@
 # Video to Formation
 
-A Blender extension for [Skybrush Studio](https://skybrush.io) that plays a video on a
-screen made of drones.
+A Blender extension for [Skybrush Studio](https://skybrush.io) that plays a video, or a
+scrolling text, on a screen made of drones.
 
 ![A video played on a 1,972-drone grid screen](media/demo_grid.gif)
 
@@ -14,6 +14,12 @@ Pick a video, a screen shape and a drone count. Video to Formation then:
 
 The result is ordinary Skybrush formations and light effects, so transitions and
 `.skyc` export work as usual.
+
+**New in 0.4: scrolling text.** Type a text instead of choosing a video: the screen is
+built as high as the letters and as wide as your drone count allows, and the text
+slides in from the right and out on the left.
+
+![Big letters: 10 x 10 drones on 100 drones](media/text_big_letters.gif)
 
 ## Download
 
@@ -54,9 +60,35 @@ Step-by-step guide, Mac and Windows notes and troubleshooting: **[INSTALL.txt](I
 - **Update Lights** re-bakes only the colours: the formation and the storyboard stay as
   they are.
 - **FFmpeg included** in the Windows and Mac builds, nothing else to install. Without
-  FFmpeg, Blender's own video reader is used (slower).
+  FFmpeg, Blender's own video reader is used (slower). The text screen does not need it.
 
 ![A video played on a 2,000-drone round screen](media/demo_rings.gif)
+
+## Scrolling text
+
+Switch **Source** to **Text** and type your text (one line; English and Turkish
+letters, digits, punctuation and ♥).
+
+- **Letters:** *LED* (5 x 7 dot letters, thin, upper and lower case, readable from 7
+  drones high), *Block* (chunky capitals; 10 x 10 drones per letter on a 100-drone
+  screen), or *Font* (smooth letters from any `.ttf` / `.otf` font, best from about 10
+  rows).
+- **Screen:** *Banner* (wide, about 4-5 letters visible, for sentences) or *Big
+  Letters* (about square, the letters as big as the screen, for short words).
+- The size is automatic from the drone count (or set *Text Height* in rows); the
+  panel shows the screen it will build before you press Generate: 100 drones with Block
+  letters and Big Letters give a 10 x 10 screen, 500 drones with LED letters a
+  71 x 7 banner.
+- **Speed:** automatic (2 letters/s on a banner, slower when only a letter or two fit)
+  or in letters per second; several passes with a gap; *Smooth Motion* glides, off
+  jumps one drone at a time like an LED sign.
+- **Colour:** one colour or rainbow, a background colour, and the usual brightness /
+  minimum LED.
+
+The text screen has its own name (*Text Screen*), formation and light effect, so a show
+can have a video screen and a text screen.
+
+![Font examples: LED, Block and three fonts](media/text_fonts.gif)
 
 *The demos are rendered from the same baked colours that go into the light effect.*
 

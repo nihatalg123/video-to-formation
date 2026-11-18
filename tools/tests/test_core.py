@@ -348,7 +348,118 @@ def t_find_tool():
         check("non-ASCII video path (Turkish letters) probes fine", info.width == 64, str(info))
 
 
+def t_text():
+    """Scrolling text: screen sized to the text, letters enter right / leave left,
+    fonts cover English and Turkish, colours and timing."""
+    from video_formation.core import ledfont, textscreen as ts
+    eng = "The quick brown fox jumps over the lazy dog 0123456789 !?.,:;'\"()-+=/*&#%@"
+    tr = "ÇĞİÖŞÜ çğıöşü İyi Seyirler ♥ ❤️ €°"
+    check("LED font: every English and Turkish character drawn", not ledfont.unknown_chars(eng + tr, "LED"),
+          str(ledfont.unknown_chars(eng + tr, "LED")))
+    caps = eng.upper().replace("@", "")
+    check("Block font: capitals, digits, punctuation, Turkish capitals",
+          not ledfont.unknown_chars(caps + "ÇĞİÖŞÜ ♥", "BLOCK"), str(ledfont.unknown_chars(caps, "BLOCK")))
+    check("Block font: lowercase shows as capitals (English i -> I)",
+          np.array_equal(ledfont.render("hi", "BLOCK"), ledfont.render("HI", "BLOCK")))
+    check("accented letters fall back to their base letter, unknown to '?'",
+          np.array_equal(ledfont.glyph("é"), ledfont.glyph("e")) and np.array_equal(ledfont.glyph("🙂"), ledfont.glyph("?"))
+          and ledfont.unknown_chars("a🙂b") == ["🙂"])
+    # sizes
+    t100 = ts.plan(ts.TextJob(text="HELLO", style="BLOCK", layout="BIG"), 100)
+    check("100 drones, Block, Big Letters: a 10 x 10 screen, 2-drone strokes",
+          (t100.cols, t100.rows, t100.scale) == (10, 10, 2), ts.describe(t100))
+    t500 = ts.plan(ts.TextJob(text="HAPPY NEW YEAR", style="LED", layout="BANNER"), 500)
+    check("500 drones, LED banner: 7 rows, wide, >= 4.5 letters visible",
+          t500.rows == 7 and t500.cols == 71 and t500.visible_letters >= 4.5, ts.describe(t500))
+    t1k = ts.plan(ts.TextJob(text="HAPPY NEW YEAR", style="LED", layout="BANNER"), 1000)
+    check("1000 drones, LED banner: letters doubled (14 rows)", t1k.rows == 14 and t1k.scale == 2, ts.describe(t1k))
+    for n in (100, 237, 500, 999, 1000, 2000):
+        for style in ("LED", "BLOCK"):
+            for lay in ("BANNER", "BIG"):
+                tp = ts.plan(ts.TextJob(text="Mutlu Yıllar", style=style, layout=lay, margin=1 if n > 300 else 0), n)
+                if not (tp.count <= n and tp.rows == tp.text_rows + 2 * tp.margin and tp.cols >= 1):
+                    check(f"size {n} {style} {lay}", False, ts.describe(tp))
+    check("every size: never more drones than asked, rows = text + margins", True)
+    tm = ts.plan(ts.TextJob(text="AB", height=14), 300)
+    check("Text Height 14 with LED: dots 2 x 2", tm.scale == 2 and tm.text_rows == 14)
+    try:
+        ts.plan(ts.TextJob(text="AB", height=40), 30)
+        check("too few drones for the text height: clear error", False)
+    except ValueError as exc:
+        check("too few drones for the text height: clear error", "rows" in str(exc))
+    try:
+        ts.plan(ts.TextJob(text="   "), 300)
+        check("empty text: clear error", False)
+    except ValueError:
+        check("empty text: clear error", True)
+    # motion
+    job = ts.TextJob(text="HI", style="LED", smooth=False)
+    tp = ts.plan(job, 300)
+    a0, _ = ts.coverage(tp, 0.0, False)
+    a_end, _ = ts.coverage(tp, tp.duration, False)
+    mid, _ = ts.coverage(tp, tp.duration / 2, False)
+    check("text starts off-screen right, ends off-screen left, lit in between",
+          a0.max() == 0 and a_end.max() == 0 and mid.max() == 1.0)
+    late, _ = ts.coverage(tp, tp.duration / 2 + 0.3, False)
+    lit_mid = np.nonzero(mid.max(axis=0))[0]
+    lit_late = np.nonzero(late.max(axis=0))[0]
+    check("it moves right to left", lit_late.mean() < lit_mid.mean(), f"{lit_mid.mean():.1f} -> {lit_late.mean():.1f}")
+    check("whole-column motion keeps the dots crisp (0 or 1 only)", set(np.unique(late)) <= {0.0, 1.0})
+    soft, _ = ts.coverage(tp, tp.duration / 2 + 0.013, True)
+    check("smooth motion has in-between values", ((soft > 0.01) & (soft < 0.99)).any())
+    check("automatic speed: 2 letters/s on a banner, slower on big letters",
+          abs(t500.letters_per_second - 2.0) < 1e-9 and t100.letters_per_second < 1.0,
+          f"{t500.letters_per_second:.2f} / {t100.letters_per_second:.2f}")
+    t2 = ts.plan(ts.TextJob(text="HI", loops=3, gap=2), 300)
+    gap_cols = int(round(2 * t2.advance))
+    check("3 passes: the text three times with gaps, and it takes longer",
+          t2.loop_strip.shape[1] == 3 * t2.strip.shape[1] + 2 * gap_cols and t2.duration > tp.duration,
+          f"{t2.loop_strip.shape[1]} cols, {t2.duration:.1f} s vs {tp.duration:.1f} s")
+    # colours and bake
+    g = sampling.Grade(floor=0.02)
+    job = ts.TextJob(text="HI", colour=(1.0, 0.0, 0.0), background=(0.0, 0.0, 0.0), smooth=False)
+    tp = ts.plan(job, 300)
+    c = ts.frame_colors(tp, job, tp.duration / 2, g)
+    lit = c[:, 0] > 0.9
+    check("text drones red, the rest at the floor", lit.any() and np.allclose(c[lit], [1, 0, 0])
+          and np.allclose((c[~lit] @ sampling.REC709), 0.02, atol=1e-6))
+    rb = ts.TextJob(text="HELLO WORLD", colour_mode="RAINBOW", smooth=False)
+    tpr = ts.plan(rb, 600)
+    cr = ts.frame_colors(tpr, rb, tpr.duration / 2)
+    hues = {tuple(np.round(v, 1)) for v in cr[cr.max(axis=1) > 0.5]}
+    check("rainbow: many colours along the text", len(hues) > 5, str(len(hues)))
+    times = ts.light_times(tp, 15)
+    baked = ts.bake(tp, job, times, g)
+    check("bake: one uint8 row per light frame and drone", baked.shape == (len(times), tp.count, 3)
+          and baked.dtype == np.uint8 and len(times) >= tp.duration * 15)
+    scr = ts.make_screen(tp, spacing=2.0, bottom_z=30.0)
+    check("text screen: a clean grid, spacing kept, bottom at 30 m",
+          scr.count == tp.count and abs(layout.min_distance(scr.positions) - 2.0) < 1e-9
+          and abs(scr.positions[:, 2].min() - 30.0) < 1e-9)
+    top_left = np.argmin(scr.positions[:, 0] - scr.positions[:, 2] * 1000)
+    check("drone 0 is the top-left of the screen (row by row)", top_left == 0)
+    scr_w = ts.make_screen(tp, width_m=84.0)
+    check("Size By Width: spacing follows", abs(scr_w.width_m - 84.0) < 1e-9)
+    # smooth font raster
+    sq = np.array([[[0, 0], [2, 0], [2, 1]], [[0, 0], [2, 1], [0, 1]]], float)
+    st = ts.rasterize_triangles(sq, 5)
+    check("font raster: a 2:1 box fills a 5 x 10 strip", st.shape == (5, 10) and st.min() > 0.99)
+    tri = np.array([[[0, 0], [4, 0], [0, 4]]], float)
+    st = ts.rasterize_triangles(tri, 8)
+    check("font raster: a half-square triangle covers about half", 0.4 < st.mean() < 0.6, f"{st.mean():.2f}")
+
+    def fake_font(text, rows):
+        return ts.rasterize_triangles(np.array([[[0, 0], [len(text) * 0.6, 0], [len(text) * 0.6, 1]],
+                                                [[0, 0], [len(text) * 0.6, 1], [0, 1]]]), rows)
+    tf = ts.plan(ts.TextJob(text="HELLO", style="FONT"), 600, fake_font)
+    check("Font letters: auto height keeps >= 4.5 letters visible", tf.visible_letters >= 4.5
+          and tf.text_rows >= ts.MIN_FONT_ROWS and tf.count <= 600, ts.describe(tf))
+    tfb = ts.plan(ts.TextJob(text="HI", style="FONT", layout="BIG"), 400, fake_font)
+    check("Font letters, Big: about square", tfb.rows == 20 and tfb.cols == 20, ts.describe(tfb))
+
+
 if __name__ == "__main__":
+    t_text()
     t_find_tool()
     t_layouts()
     t_sampling()

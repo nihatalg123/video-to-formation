@@ -6,6 +6,36 @@ import bpy
 from bpy.types import Panel
 
 from ..blender_io import video
+from ..core import plan, textscreen
+
+_TEXT_INFO: dict = {}
+
+
+def text_info(s) -> tuple[str, str]:
+    """(summary, warning) of the text screen the settings give, for the panel. Only
+    for the dot fonts (the Font letters need Blender's font engine: after Generate)."""
+    if str(s.text_style) == "FONT":
+        return "", ""
+    key = (s.text, s.text_style, s.text_layout, s.text_height, s.text_margin, s.text_speed,
+           s.text_loops, s.text_gap, s.drone_count)
+    if key in _TEXT_INFO:
+        return _TEXT_INFO[key]
+    try:
+        tj = plan.read_text_job(s)
+        tp = textscreen.plan(tj, int(s.drone_count))
+        info = (f"Screen {tp.cols} x {tp.rows} = {tp.count} drones\n"
+                f"{tp.visible_letters:.1f} letters visible, {tp.letters_per_second:.1f} letters/s, "
+                f"{tp.duration:.1f} s")
+        unknown = tp.info.get("unknown") or []
+        warn = ("Not in this font (shows as ?): " + " ".join(unknown)) if unknown else ""
+    except ValueError as exc:
+        info, warn = "", str(exc)
+    except Exception as exc:  # drawing must never fail
+        info, warn = "", f"{exc.__class__.__name__}: {exc}"
+    if len(_TEXT_INFO) > 32:
+        _TEXT_INFO.clear()
+    _TEXT_INFO[key] = (info, warn)
+    return info, warn
 
 
 class VIDEOFORMATION_PT_base(Panel):
@@ -23,6 +53,42 @@ class VIDEOFORMATION_PT_main(VIDEOFORMATION_PT_base):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
+        row = layout.row()
+        row.use_property_split = False
+        row.prop(s, "source", expand=True)
+        if s.source == "TEXT":
+            self._text(layout, s)
+        else:
+            self._video(layout, s)
+        self._buttons(layout, s)
+
+    def _text(self, layout, s):
+        layout.prop(s, "text")
+        layout.prop(s, "text_style", expand=True)
+        if s.text_style == "FONT":
+            layout.prop(s, "text_font")
+        layout.prop(s, "text_layout", expand=True)
+        col = layout.column(align=True)
+        col.prop(s, "text_height")
+        col.prop(s, "text_margin")
+        col = layout.column(align=True)
+        col.prop(s, "text_speed")
+        col.prop(s, "text_loops")
+        if s.text_loops > 1:
+            col.prop(s, "text_gap")
+        layout.prop(s, "text_smooth")
+        layout.prop(s, "text_colour_mode", expand=True)
+        if s.text_colour_mode == "SOLID":
+            layout.prop(s, "text_colour")
+        layout.prop(s, "text_background")
+        layout.prop(s, "light_fps")
+        info, warn = text_info(s)
+        for i, line in enumerate(info.splitlines()):
+            layout.label(text=line, icon="INFO" if i == 0 else "BLANK1")
+        if warn:
+            layout.label(text=warn, icon="ERROR")
+
+    def _video(self, layout, s):
         layout.prop(s, "video_path")
         col = layout.column(align=True)
         col.prop(s, "video_start")
@@ -39,6 +105,7 @@ class VIDEOFORMATION_PT_main(VIDEOFORMATION_PT_base):
             row.alignment = "RIGHT"
             row.label(text=text, icon="ERROR" if kind == "MISSING" else "CHECKMARK")
 
+    def _buttons(self, layout, s):
         row = layout.row(align=True)
         row.scale_y = 1.4
         row.operator("video_formation.generate", text="Generate Screen", icon="SEQUENCE").lights_only = False
@@ -63,15 +130,18 @@ class VIDEOFORMATION_PT_screen(VIDEOFORMATION_PT_base):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-        layout.prop(s, "shape", expand=True)
+        text = s.source == "TEXT"
+        if not text:
+            layout.prop(s, "shape", expand=True)
         layout.prop(s, "drone_count")
         layout.prop(s, "size_mode", expand=True)
         layout.prop(s, "spacing" if s.size_mode == "SPACING" else "width")
-        if s.shape == "GRID":
-            layout.prop(s, "aspect_mode", expand=True)
-            if s.aspect_mode == "CUSTOM":
-                layout.prop(s, "aspect")
-        layout.prop(s, "fit", expand=True)
+        if not text:
+            if s.shape == "GRID":
+                layout.prop(s, "aspect_mode", expand=True)
+                if s.aspect_mode == "CUSTOM":
+                    layout.prop(s, "aspect")
+            layout.prop(s, "fit", expand=True)
         col = layout.column(align=True)
         col.prop(s, "centre_x")
         col.prop(s, "depth_y")
@@ -92,14 +162,17 @@ class VIDEOFORMATION_PT_colour(VIDEOFORMATION_PT_base):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
+        text = s.source == "TEXT"
         col = layout.column(align=True)
         col.prop(s, "brightness")
         col.prop(s, "saturation")
         col = layout.column(align=True)
-        col.prop(s, "black_cut")
+        if not text:
+            col.prop(s, "black_cut")
         col.prop(s, "floor")
         col.prop(s, "max_led")
-        layout.prop(s, "smoothing")
+        if not text:
+            layout.prop(s, "smoothing")
 
 
 class VIDEOFORMATION_PT_skybrush(VIDEOFORMATION_PT_base):
@@ -112,7 +185,7 @@ class VIDEOFORMATION_PT_skybrush(VIDEOFORMATION_PT_base):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-        layout.prop(s, "screen_name")
+        layout.prop(s, "text_screen_name" if s.source == "TEXT" else "screen_name")
         layout.prop(s, "start_mode")
         row = layout.row(align=True)
         row.enabled = s.start_mode == "FRAME"
