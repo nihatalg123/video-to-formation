@@ -461,6 +461,25 @@ def text_screen():
     check("Font letters: Generate rebuilds the text screen", result == {"FINISHED"}
           and len(collections["Formations"].children["Text Screen"].objects) == s.result_count <= 600,
           s.last_report.splitlines()[0])
+    # the built-in fonts: Sans / Serif / Mono point the renderer at the add-on's own files
+    from video_formation.blender_io import textfont
+    seen = []
+    real_renderer = textfont.renderer
+    textfont.renderer = lambda path, scene=None: seen.append(path) or "R"
+    try:
+        for style in ("SANS", "SERIF", "MONO"):
+            s.text_style = style
+            generate.text_renderer(s, scene)
+        s.text_style, s.text_font = "FONT", "/fonts/mine.otf"
+        generate.text_renderer(s, scene)
+        s.text_style = "LED"
+        none = generate.text_renderer(s, scene)
+    finally:
+        textfont.renderer = real_renderer
+    names = [os.path.basename(p) for p in seen]
+    check("Sans / Serif / Mono use the add-on's DejaVu fonts, Font File the chosen file, LED none",
+          names == ["DejaVuSans-Bold.ttf", "DejaVuSerif-Bold.ttf", "DejaVuSansMono-Bold.ttf", "mine.otf"]
+          and all(os.path.isfile(p) for p in seen[:3]) and none is None, str(seen))
     s.text = ""
     check("empty text: Generate is greyed out", not generate.VIDEOFORMATION_OT_generate.poll(Bag(scene=scene)))
 

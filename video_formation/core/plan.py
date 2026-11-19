@@ -119,6 +119,9 @@ def check_screen(job: Job, screen: layout.Screen) -> list[str]:
 
 # --------------------------------------------------------------------- text
 
+#: Letters choices drawn smooth from a font (the add-on's own or a file).
+SMOOTH_FONTS = ("SANS", "SERIF", "MONO", "FONT")
+
 TEXT_FIELDS = {
     "text": "text", "text_style": "style", "text_layout": "layout", "text_height": "height",
     "text_margin": "margin",
@@ -142,6 +145,8 @@ def read_text_job(settings) -> textscreen.TextJob:
                 setattr(tj, name, type(getattr(tj, name))(value))
             except (TypeError, ValueError):
                 pass
+    if str(tj.style).upper() in SMOOTH_FONTS:
+        tj.style = "FONT"  # the core only knows dot fonts and "a font"
     if hasattr(settings, "text_colour"):
         tj.colour = srgb_to_linear(settings.text_colour)
     if hasattr(settings, "text_background"):

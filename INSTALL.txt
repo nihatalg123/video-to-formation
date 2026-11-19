@@ -80,8 +80,9 @@ formation and the storyboard stay as they are.
 1. At the top of the Video Formation tab, switch Source to "Text".
 2. Type the text (one line). English and Turkish letters, digits, punctuation and
    the heart symbol work.
-3. Letters: LED (thin dot letters), Block (chunky capitals) or Font (smooth letters
-   from a .ttf / .otf file; empty Font File = Blender's built-in font).
+3. Letters: LED (thin dot letters), Block (chunky capitals), Sans / Serif / Mono
+   (smooth bold letters like Arial / Times / Courier, built in), or Font File (smooth
+   letters from a .ttf / .otf file of your own; empty = Blender's built-in font).
 4. Screen: Banner (wide, for sentences) or Big Letters (about square, for short
    words: 100 drones with Block letters make a 10 x 10 screen).
 5. Set the Drone Count in the Screen section. The panel shows the screen it will
@@ -165,7 +166,8 @@ Removing
 
 Video to Formation is free software under the GNU General Public License v3 or later
 (GPL-3.0-or-later). Its LED and Block dot fonts were drawn for it and are under the
-same licence.
+same licence. The Sans, Serif and Mono letters use the DejaVu fonts, included under
+their own licence (Bitstream Vera; the text is in the add-on's "fonts" folder).
 
 The Windows and Mac packages include FFmpeg, a separate program made by the FFmpeg
 developers (https://ffmpeg.org). FFmpeg is licensed under the GNU GPL. Its licence

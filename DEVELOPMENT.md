@@ -237,9 +237,13 @@ Source = Text: a line of text slides right to left over a grid sized to the text
   letters fall back to their base letter (NFD), the rest to '?' (reported). A derived
   bold (dilating the 5 x 7 glyphs) was tried and dropped: 38 glyphs have 1-column gaps
   (m, w, M, N, ...) that close up.
-* **Font letters.** `blender_io/textfont.py` makes a temporary text object (font from
-  the file, or Blender's built-in), evaluates it to a filled mesh, reads its loop
-  triangles and removes the object again. `textscreen.rasterize_triangles` maps the
+* **Smooth letters.** Sans / Serif / Mono are the DejaVu Bold fonts shipped in
+  `video_formation/fonts/` (Bitstream Vera licence, LICENSE_DEJAVU.txt; all have the
+  Turkish letters, € and ♥); Font File is the user's own file. `plan.read_text_job`
+  hands all four to the core as style FONT. `blender_io/textfont.py` makes a
+  temporary text object with that font (or Blender's built-in), evaluates it to a
+  filled mesh, reads its loop triangles and removes the object, curve and — when
+  nothing else uses it — the font datablock again. `textscreen.rasterize_triangles` maps the
   text's ink height to the rows, samples 6 x 6 per drone and sharpens the coverage
   (smoothstep 0.12..0.67) so thin strokes still light their drone.
 * **Size.** Banner: the largest dot scale (or font height) that still shows

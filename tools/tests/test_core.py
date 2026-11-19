@@ -456,6 +456,19 @@ def t_text():
           and tf.text_rows >= ts.MIN_FONT_ROWS and tf.count <= 600, ts.describe(tf))
     tfb = ts.plan(ts.TextJob(text="HI", style="FONT", layout="BIG"), 400, fake_font)
     check("Font letters, Big: about square", tfb.rows == 20 and tfb.cols == 20, ts.describe(tfb))
+    fonts = os.path.join(ROOT, "video_formation", "fonts")
+    files = sorted(os.listdir(fonts))
+    heads = [open(os.path.join(fonts, f), "rb").read(4) for f in files if f.endswith(".ttf")]
+    check("the built-in fonts and their licence ship with the add-on",
+          files == ["DejaVuSans-Bold.ttf", "DejaVuSansMono-Bold.ttf", "DejaVuSerif-Bold.ttf", "LICENSE_DEJAVU.txt"]
+          and all(h == b"\x00\x01\x00\x00" for h in heads), str(files))
+    try:
+        from matplotlib import ft2font
+        ok = all(all(ft2font.FT2Font(os.path.join(fonts, f)).get_char_index(ord(c)) for c in "AZaz09ÇĞİÖŞÜçğıöşü♥€")
+                 for f in files if f.endswith(".ttf"))
+        check("built-in fonts have English and Turkish letters and ♥", ok)
+    except ImportError:
+        pass
 
 
 if __name__ == "__main__":

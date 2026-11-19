@@ -202,11 +202,18 @@ def main():
           s.last_report.splitlines()[0] if s.last_report else "")
     prev = bpy.data.objects.get(f"VF Preview: {s.text_screen_name}")
     check("Text: its own viewport preview", prev is not None and len(prev.data.vertices) == 100)
-    s.text_style, s.text_layout, s.drone_count = "FONT", "BANNER", 600
-    result = bpy.ops.video_formation.generate(lights_only=False)
-    print(s.last_report)
-    check("Text, Font letters: Generate finished", "FINISHED" in result and 0 < s.result_count <= 600,
-          s.last_report.splitlines()[0] if s.last_report else "")
+    for style in ("SANS", "SERIF", "MONO"):
+        path = tf.font_path_for(style)
+        t = tf.triangles("Hello İyi 2027 ♥", path)
+        check(f"{style}: the add-on's font gives triangles", t.shape[0] > 50, os.path.basename(path))
+    check("the add-on's fonts are not left in the file", not any("DejaVu" in f.name for f in bpy.data.fonts),
+          str([f.name for f in bpy.data.fonts]))
+    for style in ("SANS", "FONT"):
+        s.text_style, s.text_layout, s.drone_count = style, "BANNER", 600
+        result = bpy.ops.video_formation.generate(lights_only=False)
+        print(s.last_report)
+        check(f"Text, {style} letters: Generate finished", "FINISHED" in result and 0 < s.result_count <= 600,
+              s.last_report.splitlines()[0] if s.last_report else "")
     check("Text: the temporary text object is gone", bpy.data.objects.get("VF Text (temporary)") is None)
     result = bpy.ops.video_formation.preview()
     check("Text: Preview Frame", "FINISHED" in result)

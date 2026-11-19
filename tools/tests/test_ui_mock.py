@@ -109,6 +109,8 @@ for variant in ({}, {"shape": "RINGS", "size_mode": "WIDTH"}, {"aspect_mode": "C
                 {"source": "TEXT"}, {"source": "TEXT", "text_style": "BLOCK", "text_layout": "BIG",
                                      "drone_count": 100, "text_loops": 3},
                 {"source": "TEXT", "text_style": "FONT", "text_colour_mode": "RAINBOW"},
+                {"source": "TEXT", "text_style": "SANS"}, {"source": "TEXT", "text_style": "SERIF"},
+                {"source": "TEXT", "text_style": "MONO"},
                 {"source": "TEXT", "text": "Merhaba 🙂", "drone_count": 5}):
     s = Settings()
     for k, v in variant.items():
@@ -148,8 +150,10 @@ check("panel warns about characters the font lacks", "🙂" in warn, warn)
 s.drone_count = 5
 info, warn = panel.text_info(s)
 check("panel shows why too few drones do not work", not info and "rows" in warn, warn)
-s.text_style = "FONT"
-check("Font letters: no live summary (needs Blender's font engine)", panel.text_info(s) == ("", ""))
+for style in ("FONT", "SANS", "SERIF", "MONO"):
+    s.text_style = style
+    check(f"{style} letters: no live summary (needs Blender's font engine)", panel.text_info(s) == ("", ""))
+    check(f"{style} letters reach the core as a font", plan.read_text_job(s).style == "FONT")
 s2 = Settings()
 check("sRGB colour picker -> linear", abs(plan.srgb_to_linear((0.5, 0.5, 0.5))[0] - 0.214) < 0.001)
 

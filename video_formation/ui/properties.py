@@ -92,8 +92,13 @@ class VideoFormationSettings(PropertyGroup):
              "upper and lower case", 0),
             ("BLOCK", "Block", "Chunky capitals, 5 drones high (or 10, 15 ...); with Big "
              "Letters 100 drones make a 10 x 10 screen with 2-drone strokes", 1),
-            ("FONT", "Font", "Smooth letters from any font file (.ttf / .otf), any height; "
-             "best from about 10 rows", 2),
+            ("SANS", "Sans", "Smooth bold letters without serifs (like Arial), any height; "
+             "best from about 10 rows. Built in (DejaVu Sans Bold)", 3),
+            ("SERIF", "Serif", "Smooth bold letters with serifs (like Times), any height; "
+             "best from about 12 rows. Built in (DejaVu Serif Bold)", 4),
+            ("MONO", "Mono", "Smooth bold letters, all the same width (like Courier); "
+             "best from about 10 rows. Built in (DejaVu Sans Mono Bold)", 5),
+            ("FONT", "Font File", "Smooth letters from a font file of your own (.ttf / .otf)", 2),
         ],
         default="LED",
     )
@@ -110,7 +115,7 @@ class VideoFormationSettings(PropertyGroup):
     )
     text_font: StringProperty(
         name="Font File",
-        description="A .ttf / .otf font for the Font letters (empty = Blender's built-in font)",
+        description="A .ttf / .otf font for the Font File letters (empty = Blender's built-in font)",
         subtype="FILE_PATH",
         default="",
     )

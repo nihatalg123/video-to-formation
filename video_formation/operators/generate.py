@@ -57,12 +57,16 @@ def _formation_prop(settings) -> str:
     return "text_formation_name" if is_text(settings) else "formation_name"
 
 
+SMOOTH_STYLES = ("SANS", "SERIF", "MONO", "FONT")
+
+
 def text_renderer(settings, scene=None):
-    """The smooth-font renderer when the Font letters are chosen, else None."""
-    if str(settings.text_style) != "FONT":
+    """The smooth-letters renderer (a built-in font or the chosen file), else None."""
+    style = str(settings.text_style)
+    if style not in SMOOTH_STYLES:
         return None
     from ..blender_io import textfont
-    return textfont.renderer(settings.text_font, scene)
+    return textfont.renderer(textfont.font_path_for(style, settings.text_font), scene)
 
 
 def resolve_video(path: str) -> str:

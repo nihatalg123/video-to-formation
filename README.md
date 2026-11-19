@@ -69,10 +69,12 @@ Step-by-step guide, Mac and Windows notes and troubleshooting: **[INSTALL.txt](I
 Switch **Source** to **Text** and type your text (one line; English and Turkish
 letters, digits, punctuation and ♥).
 
-- **Letters:** *LED* (5 x 7 dot letters, thin, upper and lower case, readable from 7
-  drones high), *Block* (chunky capitals; 10 x 10 drones per letter on a 100-drone
-  screen), or *Font* (smooth letters from any `.ttf` / `.otf` font, best from about 10
-  rows).
+- **Letters:**
+  - *LED*: 5 x 7 dot letters, thin, upper and lower case, readable from 7 drones high.
+  - *Block*: chunky capitals; 10 x 10 drones per letter on a 100-drone screen.
+  - *Sans*, *Serif*, *Mono*: smooth bold letters (like Arial, Times and Courier), built
+    in, best from about 10 rows.
+  - *Font File*: smooth letters from any `.ttf` / `.otf` font of your own.
 - **Screen:** *Banner* (wide, about 4-5 letters visible, for sentences) or *Big
   Letters* (about square, the letters as big as the screen, for short words).
 - The size is automatic from the drone count (or set *Text Height* in rows); the
@@ -88,7 +90,7 @@ letters, digits, punctuation and ♥).
 The text screen has its own name (*Text Screen*), formation and light effect, so a show
 can have a video screen and a text screen.
 
-![Font examples: LED, Block and three fonts](media/text_fonts.gif)
+![Letter styles: LED, Block, Sans, Serif and Mono](media/text_fonts.gif)
 
 *The demos are rendered from the same baked colours that go into the light effect.*
 
@@ -126,6 +128,9 @@ How it works inside: [DEVELOPMENT.md](DEVELOPMENT.md).
 
 Video to Formation is free software under the GNU General Public License v3 or later,
 see [LICENSE](LICENSE).
+
+The Sans, Serif and Mono letters use the DejaVu fonts (Bitstream Vera licence, see
+`video_formation/fonts/LICENSE_DEJAVU.txt`), included in every zip.
 
 The Windows and Mac release zips include FFmpeg, a separate program made by the
 [FFmpeg](https://ffmpeg.org) developers and licensed under the GNU GPL. Its licence and

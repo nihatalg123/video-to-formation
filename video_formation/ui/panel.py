@@ -14,7 +14,7 @@ _TEXT_INFO: dict = {}
 def text_info(s) -> tuple[str, str]:
     """(summary, warning) of the text screen the settings give, for the panel. Only
     for the dot fonts (the Font letters need Blender's font engine: after Generate)."""
-    if str(s.text_style) == "FONT":
+    if str(s.text_style) in plan.SMOOTH_FONTS:
         return "", ""
     key = (s.text, s.text_style, s.text_layout, s.text_height, s.text_margin, s.text_speed,
            s.text_loops, s.text_gap, s.drone_count)
@@ -64,9 +64,11 @@ class VIDEOFORMATION_PT_main(VIDEOFORMATION_PT_base):
 
     def _text(self, layout, s):
         layout.prop(s, "text")
-        layout.prop(s, "text_style", expand=True)
+        layout.prop(s, "text_style")
         if s.text_style == "FONT":
             layout.prop(s, "text_font")
+        elif s.text_style in plan.SMOOTH_FONTS:
+            layout.label(text="Screen size shows after Generate", icon="INFO")
         layout.prop(s, "text_layout", expand=True)
         col = layout.column(align=True)
         col.prop(s, "text_height")
